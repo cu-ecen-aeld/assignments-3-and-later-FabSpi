@@ -16,6 +16,11 @@ bool do_system(const char *cmd)
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
+    int ret = system(cmd);
+
+    if (ret == -1) {
+        return false;
+    }
 
     return true;
 }
@@ -58,6 +63,35 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
+    pid_t pid = fork(); // beide Prozesse (parent und child) existieren jz und arbeiten beide den Code ab
+
+    if (pid == -1) {
+        // Fork failed
+        perror("fork");
+        return false;
+    } else if (pid == 0) { // if branch für den child process
+
+        // Execute the command. command[0] is the path, command is the argument array.
+        execv(command[0], command);
+        
+        // If execv returns, it failed
+        perror("execv");
+        exit(EXIT_FAILURE); 
+    } else { // if branch für den parent process
+        int status;
+        // Wait for the specific child process to finish
+        if (waitpid(pid, &status, 0) == -1) {   // waitpid pausiert hier und wartet auf den child process, waitpid wartet dabei auf den child process mit der spezifischen process id
+            perror("waitpid");
+            return false;
+        }
+
+        // 4. Check if the child exited successfully
+        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+            return true;
+        } else {
+            return false;
+        }
+    }
 
     va_end(args);
 
@@ -92,6 +126,50 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *   The rest of the behaviour is same as do_exec()
  *
 */
+    int pid = fork();
+
+    if (pid == -1) {
+        perror("fork");
+        return false;
+    } 
+    else if (pid == 0) {
+        // KINDPROZESS
+        
+        // 1. Datei öffnen
+        // O_WRONLY: Nur Schreiben
+        // O_CREAT: Erstellen, falls nicht vorhanden
+        // O_TRUNC: Inhalt löschen, falls vorhanden
+        // 0644: Dateiberechtigungen (rw-r--r--)
+        int fd = open(outputfile, O_WRONLY | O_TRUNC | O_CREAT, 0644);
+        if (fd < 0) {
+            perror("open");
+            exit(EXIT_FAILURE);
+        }
+
+        // copy file descriptor of file to standard output (1) --> all outputs of the command will be written to the file istead of the console
+        if (dup2(fd, 1) < 0) {
+            perror("dup2");
+            exit(EXIT_FAILURE);
+        }
+
+        // 3. Den alten Dateideskriptor schließen (wird nicht mehr gebraucht)
+        close(fd);
+
+        // execute program given by the command line which does not know that is writes into a file when writing to fd=1
+        execv(command[0], command);
+        
+        // Falls execv fehlschlägt:
+        perror("execv");
+        exit(EXIT_FAILURE);
+    } 
+    else {
+        // ELTERNPROZESS
+        int status;
+        if (waitpid(pid, &status, 0) == -1) {   //wait for child process
+            return false;
+        }
+        return (WIFEXITED(status) && WEXITSTATUS(status) == 0);
+    }
 
     va_end(args);
 
