@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Die beiden Laufzeitargumente zuweisen, um den Code lesbarer zu machen
 filesdir="$1"
