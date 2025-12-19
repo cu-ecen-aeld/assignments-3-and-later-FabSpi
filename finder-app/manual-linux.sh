@@ -64,7 +64,7 @@ mkdir -p bin dev etc home lib lib64 proc sbin sys tmp usr/bin usr/lib usr/sbin v
 cd "$OUTDIR"
 if [ ! -d "${OUTDIR}/busybox" ]
 then
-git clone git://busybox.net/busybox.git
+git clone git://busybox.net/busybox.git --depth 1 --branch ${BUSYBOX_VERSION}
     cd busybox
     git checkout ${BUSYBOX_VERSION}
     #erstelle config für busybox --> bestimmt welche befehle busybox am schluss abdekcen soll
